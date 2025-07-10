@@ -10,60 +10,61 @@ import numpy as np
 
 app = FastAPI()
 
-# Konfigurasi
+# Konfigurasi ID dan lokasi model
 FILE_ID = "13WBSxCpDo466a-eNecpd6WB3K-B2KAlC"
 MODEL_PATH_LOCAL = "daun_padi_cnn_model.keras"
-DOWNLOAD_URL = "https://docs.google.com/uc?export=download"
+GOOGLE_DRIVE_DOWNLOAD_URL = "https://docs.google.com/uc?export=download"
 
-# Fungsi untuk mendapatkan token konfirmasi Google Drive
+# Fungsi untuk ambil token konfirmasi dari Google Drive
 def get_confirm_token(response):
     for key, value in response.cookies.items():
-        if key.startswith('download_warning'):
+        if key.startswith("download_warning"):
             return value
     return None
 
-# Fungsi menyimpan file dari response
+# Simpan response ke file
 def save_response_content(response, destination):
     with open(destination, "wb") as f:
         for chunk in response.iter_content(32768):
             if chunk:
                 f.write(chunk)
 
-# Unduh model jika belum ada
-def download_model():
+# Fungsi download model dari Google Drive
+def download_model_from_drive(file_id, destination):
     session = requests.Session()
-    response = session.get(DOWNLOAD_URL, params={'id': FILE_ID}, stream=True)
+    response = session.get(GOOGLE_DRIVE_DOWNLOAD_URL, params={"id": file_id}, stream=True)
     token = get_confirm_token(response)
 
     if token:
-        params = {'id': FILE_ID, 'confirm': token}
-        response = session.get(DOWNLOAD_URL, params=params, stream=True)
+        params = {"id": file_id, "confirm": token}
+        response = session.get(GOOGLE_DRIVE_DOWNLOAD_URL, params=params, stream=True)
 
-    save_response_content(response, MODEL_PATH_LOCAL)
+    save_response_content(response, destination)
 
-    # Cek apakah file benar-benar file model, bukan HTML error
-    if os.path.getsize(MODEL_PATH_LOCAL) < 100000:  # <100KB kemungkinan besar HTML
-        with open(MODEL_PATH_LOCAL, "r", encoding="utf-8", errors="ignore") as f:
+    # Validasi file
+    if os.path.getsize(destination) < 100000:  # < 100KB kemungkinan besar HTML
+        with open(destination, "r", encoding="utf-8", errors="ignore") as f:
             content = f.read()
             if "<html" in content:
-                raise RuntimeError("Gagal mengunduh model: file bukan model yang valid, tapi halaman HTML. Cek permission Google Drive.")
+                raise RuntimeError("File yang diunduh bukan file .keras, tapi halaman HTML. Cek apakah file Drive public.")
 
-# Unduh dan load model
+# Unduh model jika belum ada
 if not os.path.exists(MODEL_PATH_LOCAL):
     try:
         print("Mengunduh model dari Google Drive...")
-        download_model()
+        download_model_from_drive(FILE_ID, MODEL_PATH_LOCAL)
         print("Model berhasil diunduh.")
     except Exception as e:
         raise RuntimeError(f"Gagal mengunduh model: {e}")
 
+# Load model
 try:
     model = tf.keras.models.load_model(MODEL_PATH_LOCAL)
     print("Model berhasil dimuat.")
 except Exception as e:
     raise RuntimeError(f"Gagal memuat model Keras dari {MODEL_PATH_LOCAL}: {e}")
 
-# Setup model config
+# Konfigurasi input/output model
 IMAGE_HEIGHT = 150
 IMAGE_WIDTH = 150
 CLASS_NAMES = [
@@ -72,7 +73,7 @@ CLASS_NAMES = [
 ]
 
 @app.get("/")
-async def read_root():
+async def home():
     return {"message": "API Klasifikasi Daun Padi siap digunakan."}
 
 @app.post("/predict/")
@@ -88,8 +89,7 @@ async def predict_image(file: UploadFile = File(...)):
 
         predictions = model.predict(img_array)
         score = tf.nn.softmax(predictions[0])
-
-        predicted_index = np.argmax(score)
+        predicted_index = int(np.argmax(score))
         predicted_label = CLASS_NAMES[predicted_index]
         confidence = float(np.max(score))
 
@@ -103,4 +103,4 @@ async def predict_image(file: UploadFile = File(...)):
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Terjadi kesalahan saat prediksi: {e}")
+        raise HTTPException(status_code=500, detail=f"Terjadi kesalahan saat memproses gambar: {e}")
