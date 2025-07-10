@@ -12,8 +12,44 @@ app = FastAPI()
 
 # URL model dari Google Drive (akan diambil dari environment variable di Railway)
 # Jika tidak ada env var, gunakan fallback URL (bisa diisi dengan URL default atau kosongkan)
-MODEL_URL = os.environ.get("MODEL_URL", "https://drive.google.com/uc?export=download&id=13WBSxCpDo466a-eNecpd6WB3K-B2KAlC")
-MODEL_PATH_LOCAL = 'daun_padi_cnn_model.keras'
+def download_file_from_google_drive(file_id, destination):
+    URL = "https://docs.google.com/uc?export=download"
+
+    session = requests.Session()
+    response = session.get(URL, params={'id': file_id}, stream=True)
+    token = get_confirm_token(response)
+
+    if token:
+        params = {'id': file_id, 'confirm': token}
+        response = session.get(URL, params=params, stream=True)
+
+    save_response_content(response, destination)
+
+def get_confirm_token(response):
+    for key, value in response.cookies.items():
+        if key.startswith('download_warning'):
+            return value
+    return None
+
+def save_response_content(response, destination):
+    CHUNK_SIZE = 32768
+
+    with open(destination, "wb") as f:
+        for chunk in response.iter_content(CHUNK_SIZE):
+            if chunk:
+                f.write(chunk)
+
+# Gantilah ID model di sini:
+FILE_ID = "13WBSxCpDo466a-eNecpd6WB3K-B2KAlC"
+MODEL_PATH_LOCAL = "daun_padi_cnn_model.keras"
+
+if not os.path.exists(MODEL_PATH_LOCAL):
+    try:
+        print(f"Mengunduh model dari Google Drive (ID: {FILE_ID})...")
+        download_file_from_google_drive(FILE_ID, MODEL_PATH_LOCAL)
+        print("Model berhasil diunduh.")
+    except Exception as e:
+        raise RuntimeError(f"Gagal mengunduh model: {e}")
 
 # Download model jika belum ada di lokal
 if not os.path.exists(MODEL_PATH_LOCAL):
