@@ -5,6 +5,25 @@ import tensorflow as tf
 from PIL import Image
 import io
 import os
+import requests
+
+
+MODEL_URL = os.environ.get("MODEL_URL", "https://drive.google.com/file/d/13WBSxCpDo466a-eNecpd6WB3K-B2KAlC/view?usp=sharing") # Ganti dengan URL model Anda
+MODEL_PATH_LOCAL = 'daun_padi_cnn_model.keras'
+
+# Download model jika belum ada
+if not os.path.exists(MODEL_PATH_LOCAL):
+    print(f"Mengunduh model dari {MODEL_URL}...")
+    try:
+        response = requests.get(MODEL_URL, stream=True)
+        response.raise_for_status() # Pastikan request berhasil
+        with open(MODEL_PATH_LOCAL, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
+        print("Model berhasil diunduh.")
+    except Exception as e:
+        print(f"Gagal mengunduh model: {e}")
+        raise RuntimeError(f"Gagal mengunduh model dari {MODEL_URL}: {e}")
 
 # Inisialisasi aplikasi FastAPI
 app = FastAPI()
