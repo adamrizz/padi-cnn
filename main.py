@@ -1,17 +1,19 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
-from pydantic import BaseModel
-import numpy as np
-import tensorflow as tf
-from PIL import Image
-import io
 import os
 import requests
+import tensorflow as tf
+from fastapi import FastAPI, UploadFile, File, HTTPException
+from PIL import Image
+import io
+import numpy as np
 
+app = FastAPI()
 
-MODEL_URL = os.environ.get("MODEL_URL", "https://drive.google.com/file/d/13WBSxCpDo466a-eNecpd6WB3K-B2KAlC/view?usp=sharing") # Ganti dengan URL model Anda
+# URL model dari Google Drive (akan diambil dari environment variable di Railway)
+# Jika tidak ada env var, gunakan fallback URL (bisa diisi dengan URL default atau kosongkan)
+MODEL_URL = os.environ.get("MODEL_URL", "https://drive.google.com/uc?export=download&id=13WBSxCpDo466a-eNecpd6WB3K-B2KAlC")
 MODEL_PATH_LOCAL = 'daun_padi_cnn_model.keras'
 
-# Download model jika belum ada
+# Download model jika belum ada di lokal
 if not os.path.exists(MODEL_PATH_LOCAL):
     print(f"Mengunduh model dari {MODEL_URL}...")
     try:
@@ -22,68 +24,43 @@ if not os.path.exists(MODEL_PATH_LOCAL):
                 f.write(chunk)
         print("Model berhasil diunduh.")
     except Exception as e:
-        print(f"Gagal mengunduh model: {e}")
+        print(f"Gagal mengunduh model: {e}. Pastikan URL benar dan file dapat diakses.")
         raise RuntimeError(f"Gagal mengunduh model dari {MODEL_URL}: {e}")
 
-# Inisialisasi aplikasi FastAPI
-app = FastAPI()
-
-# Path ke model Keras Anda. Pastikan nama file ini sesuai dengan model Anda.
-MODEL_URL = os.environ.get("MODEL_URL", "https://drive.google.com/file/d/13WBSxCpDo466a-eNecpd6WB3K-B2KAlC/view?usp=sharing") # Ganti dengan URL model Anda
-MODEL_PATH = 'daun_padi_cnn_model.keras'
-
-# Muat model Keras
+# Muat model Keras dari path lokal yang sudah diunduh
 try:
-    model = tf.keras.models.load_model(MODEL_PATH)
-    print(f"Model berhasil dimuat dari: {MODEL_PATH}")
+    model = tf.keras.models.load_model(MODEL_PATH_LOCAL)
+    print(f"Model berhasil dimuat dari: {MODEL_PATH_LOCAL}")
 except Exception as e:
     print(f"Error saat memuat model: {e}")
-    # Jika model gagal dimuat, aplikasi tidak dapat berjalan.
-    # Anda bisa memilih untuk raise exception atau hanya print error.
-    # Untuk deployment, lebih baik aplikasi gagal startup jika model tidak ada.
-    raise RuntimeError(f"Gagal memuat model Keras dari {MODEL_PATH}: {e}")
+    raise RuntimeError(f"Gagal memuat model Keras dari {MODEL_PATH_LOCAL}: {e}")
 
 # Definisikan ukuran input yang diharapkan oleh model Anda
-# Sesuaikan dengan ukuran gambar yang Anda gunakan saat melatih model
 IMAGE_HEIGHT = 150 # Contoh, ganti dengan tinggi gambar model Anda
 IMAGE_WIDTH = 150  # Contoh, ganti dengan lebar gambar model Anda
 
 # Definisikan kelas (label) output dari model Anda
-# Sesuaikan dengan kelas yang Anda latih (misalnya, Sehat, Bercak Coklat, dll.)
-CLASS_NAMES = ["Bacterial Blight", "Blast", "Brown Spot", "Healthy"] # Ganti dengan daftar kelas Anda
+CLASS_NAMES = ["Bacterial Leaf Blight", "Leaf Blast","Leaf Scald", "Brown Spot","Narrow  Brown Spot", "Healthy"] # Ganti dengan daftar kelas Anda
 
-# Endpoint Root untuk menguji apakah API berjalan
 @app.get("/")
 async def read_root():
     return {"message": "Selamat datang di API Klasifikasi Daun Padi!"}
 
-# Endpoint untuk prediksi gambar
 @app.post("/predict/")
 async def predict_image(file: UploadFile = File(...)):
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="File harus berupa gambar.")
 
     try:
-        # Baca gambar dari request
         contents = await file.read()
         image = Image.open(io.BytesIO(contents)).convert("RGB")
-
-        # Resize gambar ke ukuran yang diharapkan model
         image = image.resize((IMAGE_WIDTH, IMAGE_HEIGHT))
+        img_array = np.expand_dims(np.array(image), axis=0)
+        img_array = img_array / 255.0 # Hapus jika tidak ada normalisasi
 
-        # Konversi gambar ke array NumPy dan normalisasi (sesuai pre-processing model Anda)
-        img_array = np.array(image)
-        # Model seringkali mengharapkan input dengan batch dimension (misal: (1, H, W, C))
-        img_array = np.expand_dims(img_array, axis=0)
-
-        # Normalisasi: Jika model Anda dilatih dengan gambar dinormalisasi ke 0-1, lakukan ini:
-        img_array = img_array / 255.0 # Hapus baris ini jika model Anda tidak dinormalisasi
-
-        # Lakukan prediksi
         predictions = model.predict(img_array)
-        score = tf.nn.softmax(predictions[0]) # Ambil softmax dari output pertama jika multi-kelas
+        score = tf.nn.softmax(predictions[0])
 
-        # Dapatkan kelas dengan probabilitas tertinggi
         predicted_class_index = np.argmax(score)
         predicted_class_name = CLASS_NAMES[predicted_class_index]
         confidence = float(np.max(score))
