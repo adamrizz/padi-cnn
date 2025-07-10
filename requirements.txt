@@ -4,3 +4,4 @@ tensorflow-cpu
 Pillow
 numpy
 requests
+python-multipart
