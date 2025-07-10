@@ -1,4 +1,6 @@
 import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1' # Ini akan menyembunyikan semua GPU dari TensorFlow
+
 import requests
 import tensorflow as tf
 from fastapi import FastAPI, UploadFile, File, HTTPException
