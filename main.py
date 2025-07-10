@@ -7,8 +7,18 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from PIL import Image
 import io
 import numpy as np
+from fastapi.middleware.cors import CORSMiddleware
+
 
 app = FastAPI()
+
+app.add_middleware(
+  CORSMiddleware,
+  allow_origins=["*"],  # Atau masukkan domain Vercel
+  allow_credentials=True,
+  allow_methods=["*"],
+  allow_headers=["*"],
+)
 
 # URL model dari GitHub Releases
 MODEL_URL = "https://github.com/adamrizz/padi-cnn/releases/download/v1.0/daun_padi_cnn_model.keras"
