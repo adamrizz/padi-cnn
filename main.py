@@ -10,49 +10,31 @@ import numpy as np
 
 app = FastAPI()
 
-# Konfigurasi ID dan lokasi model
-FILE_ID = "13WBSxCpDo466a-eNecpd6WB3K-B2KAlC"
+# URL model dari GitHub Releases
+MODEL_URL = "https://github.com/adamrizz/padi-cnn/releases/download/v1.0/daun_padi_cnn_model.keras"
 MODEL_PATH_LOCAL = "daun_padi_cnn_model.keras"
-GOOGLE_DRIVE_DOWNLOAD_URL = "https://docs.google.com/uc?export=download"
 
-# Fungsi untuk ambil token konfirmasi dari Google Drive
-def get_confirm_token(response):
-    for key, value in response.cookies.items():
-        if key.startswith("download_warning"):
-            return value
-    return None
-
-# Simpan response ke file
-def save_response_content(response, destination):
+# Fungsi download model dari GitHub
+def download_model_from_github(url, destination):
+    response = requests.get(url, stream=True)
+    if response.status_code != 200:
+        raise RuntimeError(f"Gagal mengunduh model dari GitHub: Status code {response.status_code}")
     with open(destination, "wb") as f:
-        for chunk in response.iter_content(32768):
-            if chunk:
-                f.write(chunk)
+        for chunk in response.iter_content(8192):
+            f.write(chunk)
 
-# Fungsi download model dari Google Drive
-def download_model_from_drive(file_id, destination):
-    session = requests.Session()
-    response = session.get(GOOGLE_DRIVE_DOWNLOAD_URL, params={"id": file_id}, stream=True)
-    token = get_confirm_token(response)
-
-    if token:
-        params = {"id": file_id, "confirm": token}
-        response = session.get(GOOGLE_DRIVE_DOWNLOAD_URL, params=params, stream=True)
-
-    save_response_content(response, destination)
-
-    # Validasi file
-    if os.path.getsize(destination) < 100000:  # < 100KB kemungkinan besar HTML
+    # Validasi file: pastikan bukan file HTML
+    if os.path.getsize(destination) < 100000:
         with open(destination, "r", encoding="utf-8", errors="ignore") as f:
             content = f.read()
             if "<html" in content:
-                raise RuntimeError("File yang diunduh bukan file .keras, tapi halaman HTML. Cek apakah file Drive public.")
+                raise RuntimeError("File hasil unduhan bukan file .keras, tapi halaman HTML. Cek link GitHub Releases-nya.")
 
 # Unduh model jika belum ada
 if not os.path.exists(MODEL_PATH_LOCAL):
+    print("Mengunduh model dari GitHub Releases...")
     try:
-        print("Mengunduh model dari Google Drive...")
-        download_model_from_drive(FILE_ID, MODEL_PATH_LOCAL)
+        download_model_from_github(MODEL_URL, MODEL_PATH_LOCAL)
         print("Model berhasil diunduh.")
     except Exception as e:
         raise RuntimeError(f"Gagal mengunduh model: {e}")
