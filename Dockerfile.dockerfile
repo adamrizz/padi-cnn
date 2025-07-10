@@ -10,7 +10,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Salin aplikasi FastAPI Anda dan file model ke dalam container
 COPY main.py .
-COPY daun_padi_cnn_model.keras . 
 
 # Expose port yang akan digunakan oleh aplikasi FastAPI (default Uvicorn)
 EXPOSE 8000
