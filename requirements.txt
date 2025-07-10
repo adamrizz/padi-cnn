@@ -1,0 +1,5 @@
+fastapi
+uvicorn[standard]
+tensorflow # atau tensorflow-cpu jika Anda tidak butuh GPU
+Pillow
+numpy
