@@ -12,14 +12,20 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
+# Ganti dengan URL frontend Vercel Anda
+origins = [
+    "https://ui-padi-cnn.vercel.app",  # WAJIB: Masukkan URL Vercel Anda di sini
+    "http://localhost:8080",
+    "null"
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Ganti sesuai domain frontend
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST"], # Cukup izinkan metode yang dipakai
     allow_headers=["*"],
 )
-
 # URL model dari GitHub Releases
 MODEL_URL = "https://github.com/adamrizz/padi-cnn/releases/download/v1.0/daun_padi_cnn_model.keras"
 MODEL_PATH_LOCAL = "daun_padi_cnn_model.keras"
