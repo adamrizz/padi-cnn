@@ -14,7 +14,7 @@ app = FastAPI()
 
 app.add_middleware(
   CORSMiddleware,
-  allow_origins=["*"],  # Atau masukkan domain Vercel
+  allow_origins=["https://ui-padi-cnn.vercel.app/"],  # Atau masukkan domain Vercel
   allow_credentials=True,
   allow_methods=["*"],
   allow_headers=["*"],
