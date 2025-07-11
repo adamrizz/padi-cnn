@@ -111,5 +111,5 @@ async def predict_image(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Terjadi kesalahan saat memproses gambar: {e}")
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8000))  # default ke 8000 jika tidak diset Railway
+    port = int(os.environ.get("PORT", 8080))  # default ke 8000 jika tidak diset Railway
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
