@@ -14,7 +14,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://ui-padi-cnn.vercel.app/"],  # Ganti sesuai domain frontend
+    allow_origins=["*"],  # Ganti sesuai domain frontend
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
